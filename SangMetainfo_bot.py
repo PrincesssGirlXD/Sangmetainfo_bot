@@ -7,8 +7,6 @@ from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandle
 import os
 
 TOKEN = os.environ.get('BOT_TOKEN', None)
-PORT = int(os.environ.get('PORT', '8443'))
-HEROKU_APP_NAME = os.environ.get('HEROKU_APP_NAME', None)
 owner = os.environ.get('OWNER', None)
 
 def logg(m):
@@ -131,7 +129,5 @@ dispatcher.add_handler(CommandHandler("check_brain", check_brain))
 dispatcher.add_handler(MessageHandler(Filters.chat_type.private, start))
 dispatcher.add_error_handler(error)
 
-updater.start_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN)
-updater.bot.setWebhook('https://' + HEROKU_APP_NAME + '.herokuapp.com/' + TOKEN)
-
+updater.start_polling()
 updater.idle()
