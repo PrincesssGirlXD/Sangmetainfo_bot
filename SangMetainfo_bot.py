@@ -84,7 +84,8 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("track", track))
     dispatcher.add_handler(MessageHandler(Filters.status_update.new_chat_members, new_chat_member))
-    dispatcher.add_handler(MessageHandler(Filters.regex(re.compile(r'.+?(?<!\w)@[A-Za-z0-9_]+(?!\w)'), re.IGNORECASE), username_change))
+    dispatcher.add_handler(MessageHandler(Filters.regex(r'.+?(?<!\w)@[A-Za-z0-9_]+(?!\w)', re.IGNORECASE), username_change))
+
     dispatcher.add_handler(MessageHandler(Filters.all, echo_all))
 
     # Log errors
